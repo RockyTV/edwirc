@@ -6,7 +6,7 @@ using System.Windows.Forms;
 
 using ChatSharp;
 
-namespace sharpclient
+namespace edwirc
 {
     static class Program
     {

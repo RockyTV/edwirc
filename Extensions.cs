@@ -6,7 +6,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
-namespace sharpclient.Extensions
+namespace edwirc.Extensions
 {
     public static class ControlExtensions
     {

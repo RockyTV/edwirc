@@ -9,11 +9,12 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Diagnostics;
 
-using sharpclient.Extensions;
+using edwirc.Extensions;
+using edwirc.Forms;
 
 using ChatSharp;
 
-namespace sharpclient
+namespace edwirc
 {
     public partial class MainForm : Form
     {
@@ -26,7 +27,7 @@ namespace sharpclient
 
             tabControl.TabPages.Add("status", "status");
 
-            ircUser = new IrcUser("nick", "user", "pass", "realname");
+            ircUser = new IrcUser(SettingsForm.fetch.userInfo.Nick, SettingsForm.fetch.userInfo.User, SettingsForm.fetch.userInfo.Password, SettingsForm.fetch.userInfo.RealName);
             ircClient = new IrcClient("irc.esper.net", ircUser);
 
             ircClient.RawMessageRecieved += ircClient_RawMessageRecieved;
@@ -132,14 +133,28 @@ namespace sharpclient
                 }
                 else
                 {
-                    string sentMessage = string.Format("[{0}] <{1}> {2}", DateTime.Now.ToString("HH:mm:ss"), ircUser.Nick, inputBox.Text);
-                    ircClient.Channels[selectedTab.Name].SendMessage(inputBox.Text);
-                    messageBox.SafeAppendText(sentMessage);
+                    if (!string.IsNullOrEmpty(inputBox.Text))
+                    {
+                        string sentMessage = string.Format("[{0}] <{1}> {2}", DateTime.Now.ToString("HH:mm:ss"), ircUser.Nick, inputBox.Text);
+                        ircClient.Channels[selectedTab.Name].SendMessage(inputBox.Text);
+                        messageBox.SafeAppendText(sentMessage);
+                    }
                 }
 
                 inputBox.ResetText();
 
                 e.Handled = true;
+            }
+
+            if (e.KeyChar == (char)Keys.ControlKey && e.KeyChar == (char)Keys.K)
+            {
+                TabPage selectedTab = tabControl.SelectedTab;
+                RichTextBox messageBox = selectedTab.Controls["messageBox" + tabControl.TabPages.IndexOf(selectedTab)] as RichTextBox;
+                RichTextBox inputBox = selectedTab.Controls["inputBox" + tabControl.TabPages.IndexOf(selectedTab)] as RichTextBox;
+
+                char kChar = (char)3;
+
+                inputBox.SafeAppendText(kChar.ToString());
             }
         }
 
@@ -181,11 +196,43 @@ namespace sharpclient
                 ListBox userList = usersPanel.Panel2.Controls["userList" + tabIndex] as ListBox;
 
                 userInfoBox.Text = string.Format("{0} users", channel.Users.Count());
+
+                List<string> usersToAdd = new List<string>();
+                usersToAdd.AddRange(channel.Users.Select(u => u.Nick));
+                foreach (KeyValuePair<char, UserCollection> usersByMode in channel.UsersByMode)
+                {
+                    switch (usersByMode.Key)
+                    {
+                        case '@':
+                        case 'o':
+                            foreach (IrcUser op in usersByMode.Value)
+                            {
+                                if (!userList.Items.Contains("@" + op.Nick)) userList.Items.Add("@" + op.Nick);
+                                usersToAdd.Remove(op.Nick);
+                            }
+                            break;
+                        case '+':
+                        case 'v':
+                            foreach (IrcUser voice in usersByMode.Value)
+                            {
+                                if (!userList.Items.Contains("+" + voice.Nick)) userList.Items.Add("+" + voice.Nick);
+                                usersToAdd.Remove(voice.Nick);
+                            }
+                            break;
+                    }
+                }
                 foreach (IrcUser user in channel.Users)
                 {
-                    if (!userList.Items.Contains(user.Mode + user.Nick)) userList.Items.Add(user.Mode + user.Nick);
+                    if (!userList.Items.Contains(user.Nick) && usersToAdd.Contains(user.Nick))
+                        userList.Items.Add(user.Nick);
                 }
             }
+        }
+
+        private void optionsToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            SettingsForm settingsForm = new SettingsForm();
+            settingsForm.ShowDialog(this);
         }
     }
 }
