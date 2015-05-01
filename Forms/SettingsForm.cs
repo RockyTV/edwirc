@@ -32,5 +32,18 @@ namespace edwirc.Forms
             this.passwordBox.Text = userInfo.Password;
             this.realNameBox.Text = userInfo.RealName;
         }
+
+        private void infoBox_Leave(object sender, EventArgs e)
+        {
+            userInfo.Nick = this.nickBox.Text;
+            userInfo.User = this.userBox.Text;
+            userInfo.Password = this.passwordBox.Text;
+            userInfo.RealName = this.realNameBox.Text;
+
+            Console.WriteLine("Nick: {0}", userInfo.Nick);
+            Console.WriteLine("User: {0}", userInfo.User);
+            Console.WriteLine("Password: {0}", userInfo.Password);
+            Console.WriteLine("RealName: {0}", userInfo.RealName);
+        }
     }
 }

@@ -13,6 +13,7 @@ using edwirc.Extensions;
 using edwirc.Forms;
 
 using ChatSharp;
+using edwirc.Controls;
 
 namespace edwirc
 {
@@ -33,6 +34,7 @@ namespace edwirc
             ircClient.RawMessageRecieved += ircClient_RawMessageRecieved;
             ircClient.UserJoinedChannel += ircClient_UserJoinedChannel;
             ircClient.ChannelMessageRecieved += ircClient_ChannelMessageRecieved;
+            ircClient.ChannelTopicReceived += ircClient_ChannelTopicReceived;
         }
 
         void ircClient_RawMessageRecieved(object sender, ChatSharp.Events.RawMessageEventArgs e)
@@ -43,7 +45,7 @@ namespace edwirc
             Console.WriteLine(e.Message);
 
             string message = string.Format("[{0}] {1}", DateTime.Now.ToString("HH:mm:ss"), e.Message.Substring(e.Message.NthIndexOf(":", 2) + 1));
-            if (!e.Message.Contains("PONG")) messageBox.SafeAppendText(message);
+            if (!e.Message.Contains("PONG") || !e.Message.Contains("PING")) messageBox.SafeAppendText(message);
         }
 
         private void tabControl_ControlAdded(object sender, ControlEventArgs e)
@@ -61,15 +63,21 @@ namespace edwirc
                 messageBox.Multiline = true;
                 messageBox.ScrollBars = RichTextBoxScrollBars.Both;
                 messageBox.Parent = tabPage;
-                messageBox.BorderStyle = BorderStyle.FixedSingle;
+                messageBox.BorderStyle = BorderStyle.None;
                 messageBox.ScrollToCaret();
 
-                RichTextBox inputBox = new RichTextBox();
+                Console.WriteLine(messageBox.Rtf);
+
+                LineSeparator lineSeparator = new LineSeparator();
+                lineSeparator.Name = string.Format("separatorInputBox{0}", tabIndex);
+                lineSeparator.Dock = DockStyle.Bottom;
+                lineSeparator.Parent = tabPage;
+
+                TextBox inputBox = new TextBox();
                 inputBox.Name = string.Format("inputBox{0}", tabIndex);
                 inputBox.Dock = DockStyle.Bottom;
                 inputBox.Parent = tabPage;
                 inputBox.KeyPress += inputBox_KeyPress;
-                inputBox.BorderStyle = BorderStyle.FixedSingle;
                 inputBox.Multiline = false;
                 inputBox.Size = new Size(0, 20);
 
@@ -104,6 +112,7 @@ namespace edwirc
                     userList.Name = string.Format("userList{0}", tabIndex);
                     userList.Dock = DockStyle.Fill;
                     userList.Parent = usersPanel.Panel2;
+                    userList.ItemHeight = (int)this.Font.Size;
                     userList.Sorted = true;
                 }
 
@@ -114,8 +123,11 @@ namespace edwirc
         private void tabControl_SelectedIndexChanged(object sender, EventArgs e)
         {
             TabPage tabPage = tabControl.SelectedTab;
+            int tabIndex = tabControl.TabPages.IndexOf(tabPage);
 
-            RichTextBox inputBox = tabPage.Controls["inputBox" + tabControl.TabPages.IndexOf(tabPage)] as RichTextBox;
+            RichTextBox messageBox = tabPage.Controls["messageBox" + tabIndex] as RichTextBox;
+            TextBox inputBox = tabPage.Controls["inputBox" + tabControl.TabPages.IndexOf(tabPage)] as TextBox;
+
             inputBox.Focus();
         }
 
@@ -125,7 +137,7 @@ namespace edwirc
             {
                 TabPage selectedTab = tabControl.SelectedTab;
                 RichTextBox messageBox = selectedTab.Controls["messageBox" + tabControl.TabPages.IndexOf(selectedTab)] as RichTextBox;
-                RichTextBox inputBox = selectedTab.Controls["inputBox" + tabControl.TabPages.IndexOf(selectedTab)] as RichTextBox;
+                TextBox inputBox = selectedTab.Controls["inputBox" + tabControl.TabPages.IndexOf(selectedTab)] as TextBox;
                 if (selectedTab.Name == "status")
                 {
                     if (inputBox.Text.StartsWith(@"/")) ircClient.SendRawMessage(inputBox.Text.Substring(1));
@@ -135,14 +147,17 @@ namespace edwirc
                 {
                     if (!string.IsNullOrEmpty(inputBox.Text))
                     {
-                        string sentMessage = string.Format("[{0}] <{1}> {2}", DateTime.Now.ToString("HH:mm:ss"), ircUser.Nick, inputBox.Text);
-                        ircClient.Channels[selectedTab.Name].SendMessage(inputBox.Text);
-                        messageBox.SafeAppendText(sentMessage);
+                        if (inputBox.Text.StartsWith(@"/")) ircClient.SendRawMessage(inputBox.Text.Substring(1));
+                        else
+                        {
+                            string sentMessage = string.Format("[{0}] <{1}> {2}", DateTime.Now.ToString("HH:mm:ss"), ircUser.Nick, inputBox.Text);
+                            ircClient.Channels[selectedTab.Name].SendMessage(inputBox.Text);
+                            messageBox.SafeAppendText(sentMessage);
+                        }
                     }
                 }
 
                 inputBox.ResetText();
-
                 e.Handled = true;
             }
 
@@ -150,11 +165,12 @@ namespace edwirc
             {
                 TabPage selectedTab = tabControl.SelectedTab;
                 RichTextBox messageBox = selectedTab.Controls["messageBox" + tabControl.TabPages.IndexOf(selectedTab)] as RichTextBox;
-                RichTextBox inputBox = selectedTab.Controls["inputBox" + tabControl.TabPages.IndexOf(selectedTab)] as RichTextBox;
+                TextBox inputBox = selectedTab.Controls["inputBox" + tabControl.TabPages.IndexOf(selectedTab)] as TextBox;
 
                 char kChar = (char)3;
 
                 inputBox.SafeAppendText(kChar.ToString());
+                e.Handled = true;
             }
         }
 
@@ -195,30 +211,36 @@ namespace edwirc
                 TextBox userInfoBox = usersPanel.Panel1.Controls["userInfoBox" + tabIndex] as TextBox;
                 ListBox userList = usersPanel.Panel2.Controls["userList" + tabIndex] as ListBox;
 
-                userInfoBox.Text = string.Format("{0} users", channel.Users.Count());
+                int channelOpsCount = 0;
+                string infoBoxText = "{0} ops, {1} users";
+                if (channel.UsersByMode.ContainsKey('o'))
+                {
+                    channelOpsCount = channel.UsersByMode['o'].Count();
+                    if (channelOpsCount == 1) infoBoxText = "{0} op, {1} users";
+                    else infoBoxText = "{0} ops, {1} users";
+                }
+
+                userInfoBox.Text = string.Format(infoBoxText, channelOpsCount, channel.Users.Count());
 
                 List<string> usersToAdd = new List<string>();
                 usersToAdd.AddRange(channel.Users.Select(u => u.Nick));
                 foreach (KeyValuePair<char, UserCollection> usersByMode in channel.UsersByMode)
                 {
-                    switch (usersByMode.Key)
+                    if (usersByMode.Key == '@' || usersByMode.Key == 'o')
                     {
-                        case '@':
-                        case 'o':
-                            foreach (IrcUser op in usersByMode.Value)
-                            {
-                                if (!userList.Items.Contains("@" + op.Nick)) userList.Items.Add("@" + op.Nick);
-                                usersToAdd.Remove(op.Nick);
-                            }
-                            break;
-                        case '+':
-                        case 'v':
-                            foreach (IrcUser voice in usersByMode.Value)
-                            {
-                                if (!userList.Items.Contains("+" + voice.Nick)) userList.Items.Add("+" + voice.Nick);
-                                usersToAdd.Remove(voice.Nick);
-                            }
-                            break;
+                        foreach (IrcUser op in usersByMode.Value)
+                        {
+                            if (!userList.Items.Contains("@" + op.Nick)) userList.Items.Add("@" + op.Nick);
+                            usersToAdd.Remove(op.Nick);
+                        }
+                    }
+                    else if (usersByMode.Key == '+' || usersByMode.Key == 'v')
+                    {
+                        foreach (IrcUser voice in usersByMode.Value)
+                        {
+                            if (!userList.Items.Contains("+" + voice.Nick)) userList.Items.Add("+" + voice.Nick);
+                            usersToAdd.Remove(voice.Nick);
+                        }
                     }
                 }
                 foreach (IrcUser user in channel.Users)
@@ -233,6 +255,19 @@ namespace edwirc
         {
             SettingsForm settingsForm = new SettingsForm();
             settingsForm.ShowDialog(this);
+        }
+
+
+        void ircClient_ChannelTopicReceived(object sender, ChatSharp.Events.ChannelTopicEventArgs e)
+        {
+            if (ircClient.Channels.Contains(e.Channel))
+            {
+                TabPage tabPage = tabControl.TabPages[e.Channel.Name];
+                int tabIndex = tabControl.TabPages.IndexOf(tabPage);
+
+                RichTextBox messageBox = tabPage.Controls["messageBox" + tabIndex] as RichTextBox;
+                messageBox.SafeAppendText("*** Topic for " + tabPage.Name + ": " + e.Topic);
+            }
         }
     }
 }

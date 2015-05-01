@@ -58,6 +58,18 @@ namespace edwirc.Extensions
             }
             textBox.AppendText(text + "\r\n");
         }
+        public static void AppendRtf(this RichTextBox textBox, string text)
+        {
+            if (textBox.InvokeRequired)
+            {
+                textBox.Invoke((MethodInvoker)delegate
+                {
+                    textBox.Rtf += (text + "\r\n");
+                });
+                return;
+            }
+            textBox.Rtf += (text + "\r\n");
+        }
     }
     public static class TabControlExtensions
     {

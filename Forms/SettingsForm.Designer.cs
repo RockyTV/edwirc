@@ -116,6 +116,7 @@
             this.realNameBox.Name = "realNameBox";
             this.realNameBox.Size = new System.Drawing.Size(387, 20);
             this.realNameBox.TabIndex = 4;
+            this.realNameBox.Leave += new System.EventHandler(this.infoBox_Leave);
             // 
             // passwordBox
             // 
@@ -126,6 +127,7 @@
             this.passwordBox.Size = new System.Drawing.Size(387, 20);
             this.passwordBox.TabIndex = 3;
             this.passwordBox.UseSystemPasswordChar = true;
+            this.passwordBox.Leave += new System.EventHandler(this.infoBox_Leave);
             // 
             // userBox
             // 
@@ -135,6 +137,7 @@
             this.userBox.Name = "userBox";
             this.userBox.Size = new System.Drawing.Size(387, 20);
             this.userBox.TabIndex = 2;
+            this.userBox.Leave += new System.EventHandler(this.infoBox_Leave);
             // 
             // nickBox
             // 
@@ -144,6 +147,7 @@
             this.nickBox.Name = "nickBox";
             this.nickBox.Size = new System.Drawing.Size(387, 20);
             this.nickBox.TabIndex = 1;
+            this.nickBox.Leave += new System.EventHandler(this.infoBox_Leave);
             // 
             // labelNick
             // 
