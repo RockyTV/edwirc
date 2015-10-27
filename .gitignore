@@ -2,6 +2,7 @@
 *.userprefs
 [Bb]in/
 [Oo]bj/
+[Dd]ebug/
 *.suo
 *.csproj.user
 *.pdb
