@@ -1,6 +1,7 @@
 *.dll
 *.userprefs
-bin/
-obj/
+[Bb]in/
+[Oo]bj/
 *.suo
 *.csproj.user
+*.pdb
